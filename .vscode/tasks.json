@@ -1,11 +1,11 @@
 {
     "version": "2.0.0",
     "tasks": [
-        // TODO: build にオプションをつけれるようにして、 right だけ left だけや別キーボードが増えた時に選べるようにする
         {
             "label": "build",
             "type": "shell",
-            "command": "just build torabo_tsuki_lp_left && just build torabo_tsuki_lp_right"
+            "command": "just build all",
+            "problemMatcher": []
         }
     ]
 }
