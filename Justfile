@@ -17,12 +17,12 @@ zmk_config_root := absolute_path(`
 # parse build.yaml and filter targets by expression
 _parse_targets $expr:
     #!/usr/bin/env bash
-    attrs="[.board, .shield, .snippet, .\"artifact-name\"]"
+    attrs="[.board, .shield, .snippet, .\"artifact-name\", .\"cmake-args\"]"
     filter="(($attrs | map(. // [.]) | combinations), ((.include // {})[] | $attrs)) | join(\",\")"
     echo "$(yq -r "$filter" "{{ zmk_config_root }}/build.yaml" | grep -v "^," | grep -i "${expr/#all/.*}")"
 
 # build firmware for single board & shield combination
-_build_single $board $shield $snippet $artifact *west_args:
+_build_single $board $shield $snippet $artifact $cmake_args *west_args:
     #!/usr/bin/env bash
     set -euo pipefail
     artifact="${artifact:-${shield:+${shield// /+}-}${board}}"
@@ -33,10 +33,10 @@ _build_single $board $shield $snippet $artifact *west_args:
     # Check if zephyr/module.yml exists to determine whether to include DZMK_EXTRA_MODULES
     if [[ -f "{{ zmk_config_root }}/zephyr/module.yml" ]]; then
         west build -s zmk/app -d "$build_dir" -b $board {{ west_args }} ${snippet:+-S "$snippet"} -- \
-            -DZMK_CONFIG=""{{ zmk_config_root }}/config"" -DZMK_EXTRA_MODULES="{{ zmk_config_root }}" ${shield:+-DSHIELD="$shield"}
+            -DZMK_CONFIG=""{{ zmk_config_root }}/config"" -DZMK_EXTRA_MODULES="{{ zmk_config_root }}" ${shield:+-DSHIELD="$shield"} {{ cmake_args }}
     else
         west build -s zmk/app -d "$build_dir" -b $board {{ west_args }} ${snippet:+-S "$snippet"} -- \
-            -DZMK_CONFIG=""{{ zmk_config_root }}/config"" ${shield:+-DSHIELD="$shield"}
+            -DZMK_CONFIG=""{{ zmk_config_root }}/config"" ${shield:+-DSHIELD="$shield"} {{ cmake_args }}
     fi
 
     if [[ -f "$build_dir/zephyr/zmk.uf2" ]]; then
@@ -52,8 +52,8 @@ build expr *west_args:
     targets=$(just _parse_targets {{ expr }})
 
     [[ -z $targets ]] && echo "No matching targets found. Aborting..." >&2 && exit 1
-    echo "$targets" | while IFS=, read -r board shield snippet artifact; do
-        just _build_single "$board" "$shield" "$snippet" "$artifact" {{ west_args }}
+    echo "$targets" | while IFS=, read -r board shield snippet artifact cmake_args; do
+        just _build_single "$board" "$shield" "$snippet" "$artifact" "$cmake_args" {{ west_args }}
     done
 
 # clear build cache and artifacts
